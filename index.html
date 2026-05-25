@@ -194,10 +194,19 @@
       margin-top: 4px;
     }
 
+    .savings-badge.more-expensive {
+      background: #fdecea;
+      color: #c62828;
+    }
+
     .savings-amount {
       font-size: 0.78rem;
       color: #2e7d32;
       margin-top: 2px;
+    }
+
+    .savings-amount.more-expensive {
+      color: #c62828;
     }
 
     .footer-note {
@@ -310,11 +319,15 @@
     ];
 
     tableBody.innerHTML = packages.map(pkg => {
-      const saving = pkg.tm - pkg.myrent;
-      const pct = savingsPct(pkg.myrent, pkg.tm);
+      const diff = pkg.tm - pkg.myrent;
+      const cheaper = diff > 0;
+      const pct = Math.abs((diff / pkg.tm) * 100).toFixed(1);
       const myrentDisplay = pkg.name === 'Premium'
         ? `<div class="price-myrent">${fmt(pkg.myrent)}</div><div class="package-desc">$75 base + $175 premium add-on</div>`
         : `<div class="price-myrent">${fmt(pkg.myrent)}</div>`;
+      const diffLabel = cheaper
+        ? `<div class="savings-amount">Save ${fmt(diff)}</div><div><span class="savings-badge">${pct}% cheaper</span></div>`
+        : `<div class="savings-amount more-expensive">Costs ${fmt(Math.abs(diff))} more</div><div><span class="savings-badge more-expensive">${pct}% more expensive</span></div>`;
       return `
         <tr>
           <td>
@@ -323,8 +336,7 @@
           </td>
           <td>
             ${myrentDisplay}
-            <div class="savings-amount">Save ${fmt(saving)}</div>
-            <div><span class="savings-badge">${pct}% cheaper</span></div>
+            ${diffLabel}
           </td>
           <td>
             <div class="price">${fmt(pkg.tm)}</div>
