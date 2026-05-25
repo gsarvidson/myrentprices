@@ -41,7 +41,7 @@
       box-shadow: 0 2px 12px rgba(0,0,0,0.08);
       padding: 32px;
       width: 100%;
-      max-width: 560px;
+      max-width: 860px;
     }
 
     .input-group {
@@ -155,7 +155,7 @@
 
     tbody td {
       padding: 14px 14px;
-      vertical-align: middle;
+      vertical-align: top;
     }
 
     tbody td:not(:first-child) {
@@ -246,6 +246,7 @@
         <tr>
           <th>Package</th>
           <th>MyRent</th>
+          <th>Realestate.co.nz</th>
           <th>Trade Me Direct</th>
         </tr>
       </thead>
@@ -273,6 +274,12 @@
   // MyRent pricing ex GST
   const myrentBase    = 75;
   const myrentPremium = 250;
+
+  // Realestate.co.nz flat rates (inc GST) — converted to ex GST for display
+  const reaBase    = exGst(49);
+  const reaBaseGst = 49;
+  const reaPremium    = exGst(124);
+  const reaPremiumGst = 124;
 
   function getTMPrices(rent) {
     for (const tier of tmPricing) {
@@ -308,6 +315,8 @@
         myrent: myrentBase,
         tm: tm.base,
         tmGst: tm.baseGst,
+        rea: reaBase,
+        reaGst: reaBaseGst,
       },
       {
         name: 'Premium',
@@ -315,6 +324,8 @@
         myrent: myrentPremium,
         tm: tm.premium,
         tmGst: tm.premiumGst,
+        rea: reaPremium,
+        reaGst: reaPremiumGst,
       },
     ];
 
@@ -337,6 +348,19 @@
           <td>
             ${myrentDisplay}
             ${diffLabel}
+          </td>
+          <td>
+            ${(() => {
+              const reaDiff = pkg.tm - pkg.rea;
+              const reaCheaper = reaDiff > 0;
+              const reaPct = Math.abs((reaDiff / pkg.tm) * 100).toFixed(1);
+              const reaDiffLabel = reaCheaper
+                ? `<div class="savings-amount">Save ${fmt(reaDiff)}</div><div><span class="savings-badge">${reaPct}% cheaper</span></div>`
+                : `<div class="savings-amount more-expensive">Costs ${fmt(Math.abs(reaDiff))} more</div><div><span class="savings-badge more-expensive">${reaPct}% more expensive</span></div>`;
+              return `<div class="price">${fmt(pkg.rea)}</div>
+            <div class="package-desc">${fmt(pkg.reaGst)} incl. GST</div>
+            ${reaDiffLabel}`;
+            })()}
           </td>
           <td>
             <div class="price">${fmt(pkg.tm)}</div>
