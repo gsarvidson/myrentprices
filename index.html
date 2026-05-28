@@ -41,7 +41,7 @@
       box-shadow: 0 2px 12px rgba(0,0,0,0.08);
       padding: 32px;
       width: 100%;
-      max-width: 860px;
+      max-width: 1100px;
     }
 
     .input-group {
@@ -162,6 +162,29 @@
       text-align: right;
     }
 
+    /* Reference column highlight (Trade Me Direct) */
+    th.ref-col {
+      color: #444 !important;
+      background: #f0f4ff;
+      border-bottom: 2px solid #c5d0f5 !important;
+      border-left: 2px solid #c5d0f5;
+    }
+
+    td.ref-col {
+      background: #f7f9ff;
+      border-left: 2px solid #c5d0f5;
+    }
+
+    .ref-label {
+      display: block;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: #7b8fd4;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+    }
+
     .package-name {
       font-weight: 600;
       color: #1a1a1a;
@@ -178,7 +201,7 @@
       color: #333;
     }
 
-    .price-myrent {
+    .price-bold {
       font-weight: 700;
       color: #1a1a1a;
     }
@@ -187,7 +210,7 @@
       display: inline-block;
       background: #e8f5e9;
       color: #2e7d32;
-      font-size: 0.78rem;
+      font-size: 0.75rem;
       font-weight: 700;
       padding: 3px 8px;
       border-radius: 20px;
@@ -247,20 +270,22 @@
           <th>Package</th>
           <th>MyRent</th>
           <th>Realestate.co.nz</th>
-          <th>Trade Me Direct</th>
+          <th>TM ALC</th>
+          <th>TM Partner</th>
+          <th class="ref-col">Trade Me Direct<span class="ref-label">reference price</span></th>
         </tr>
       </thead>
       <tbody id="tableBody"></tbody>
     </table>
-    <p class="footer-note">All prices exclude GST. Savings shown vs equivalent Trade Me Direct package.</p>
+    <p class="footer-note">All prices exclude GST unless noted. % savings calculated vs Trade Me Direct.</p>
   </div>
 </div>
 
 <script>
-  // Trade Me Direct pricing — ex GST for display, inc GST shown in small print
   const GST = 1.15;
   const exGst = n => Math.round(n / GST * 100) / 100;
 
+  // Trade Me Direct — variable by rent bracket (inc GST listed, shown ex GST)
   const tmPricing = [
     { maxRent: 199,  base: exGst(119), baseGst: 119, premium: exGst(179), premiumGst: 179 },
     { maxRent: 299,  base: exGst(119), baseGst: 119, premium: exGst(179), premiumGst: 179 },
@@ -271,15 +296,21 @@
     { maxRent: Infinity, base: exGst(339), baseGst: 339, premium: exGst(509), premiumGst: 509 },
   ];
 
-  // MyRent pricing ex GST
+  // MyRent — flat, ex GST
   const myrentBase    = 75;
-  const myrentPremium = 250;
+  const myrentPremium = 250; // $75 base + $175 add-on
 
-  // Realestate.co.nz flat rates (inc GST) — converted to ex GST for display
-  const reaBase    = exGst(49);
-  const reaBaseGst = 49;
-  const reaPremium    = exGst(124);
-  const reaPremiumGst = 124;
+  // Realestate.co.nz — flat, inc GST
+  const reaBase       = exGst(49);   const reaBaseGst    = 49;
+  const reaPremium    = exGst(124);  const reaPremiumGst = 124;
+
+  // TM ALC — flat, ex GST
+  const alcBase       = 139;
+  const alcPremium    = 139 + 160; // $299
+
+  // TM Partner — flat, ex GST
+  const partnerBase    = 0;
+  const partnerPremium = 165;
 
   function getTMPrices(rent) {
     for (const tier of tmPricing) {
@@ -292,8 +323,16 @@
     return '$' + n.toFixed(2).replace(/\.00$/, '');
   }
 
-  function savingsPct(myrent, tm) {
-    return ((tm - myrent) / tm * 100).toFixed(1);
+  // Returns HTML showing price + comparison vs reference (TM Direct)
+  function comparisonCell(price, ref, priceHtml) {
+    if (ref === 0) return priceHtml; // can't divide by zero
+    const diff = ref - price;
+    const pct = Math.abs((diff / ref) * 100).toFixed(1);
+    const cheaper = diff > 0;
+    const badge = cheaper
+      ? `<div class="savings-amount">Save ${fmt(diff)}</div><div><span class="savings-badge">${pct}% cheaper</span></div>`
+      : `<div class="savings-amount more-expensive">Costs ${fmt(Math.abs(diff))} more</div><div><span class="savings-badge more-expensive">${pct}% more expensive</span></div>`;
+    return priceHtml + badge;
   }
 
   document.getElementById('calcForm').addEventListener('submit', function(e) {
@@ -302,67 +341,53 @@
     if (!rent || rent <= 0) return;
 
     const tm = getTMPrices(rent);
-    const results = document.getElementById('results');
-    const tableBody = document.getElementById('tableBody');
-    const rentLabel = document.getElementById('rentLabel');
-
-    rentLabel.textContent = `Rent: $${rent}/week`;
+    document.getElementById('rentLabel').textContent = `Rent: $${rent}/week`;
 
     const packages = [
       {
-        name: 'Base',
-        desc: 'Standard listing',
-        myrent: myrentBase,
-        tm: tm.base,
-        tmGst: tm.baseGst,
-        rea: reaBase,
-        reaGst: reaBaseGst,
+        name: 'Base', desc: 'Standard listing',
+        myrent: myrentBase, myrentNote: null,
+        rea: reaBase, reaGst: reaBaseGst,
+        alc: alcBase, alcNote: null,
+        partner: partnerBase, partnerNote: null,
+        tm: tm.base, tmGst: tm.baseGst,
       },
       {
-        name: 'Premium',
-        desc: 'Featured listing',
-        myrent: myrentPremium,
-        tm: tm.premium,
-        tmGst: tm.premiumGst,
-        rea: reaPremium,
-        reaGst: reaPremiumGst,
+        name: 'Premium', desc: 'Featured listing',
+        myrent: myrentPremium, myrentNote: '$75 base + $175 premium add-on',
+        rea: reaPremium, reaGst: reaPremiumGst,
+        alc: alcPremium, alcNote: '$139 base + $160 premium add-on',
+        partner: partnerPremium, partnerNote: null,
+        tm: tm.premium, tmGst: tm.premiumGst,
       },
     ];
 
-    tableBody.innerHTML = packages.map(pkg => {
-      const diff = pkg.tm - pkg.myrent;
-      const cheaper = diff > 0;
-      const pct = Math.abs((diff / pkg.tm) * 100).toFixed(1);
-      const myrentDisplay = pkg.name === 'Premium'
-        ? `<div class="price-myrent">${fmt(pkg.myrent)}</div><div class="package-desc">$75 base + $175 premium add-on</div>`
-        : `<div class="price-myrent">${fmt(pkg.myrent)}</div>`;
-      const diffLabel = cheaper
-        ? `<div class="savings-amount">Save ${fmt(diff)}</div><div><span class="savings-badge">${pct}% cheaper</span></div>`
-        : `<div class="savings-amount more-expensive">Costs ${fmt(Math.abs(diff))} more</div><div><span class="savings-badge more-expensive">${pct}% more expensive</span></div>`;
+    document.getElementById('tableBody').innerHTML = packages.map(pkg => {
+      // MyRent cell
+      const myrentPriceHtml = `<div class="price-bold">${fmt(pkg.myrent)}</div>${pkg.myrentNote ? `<div class="package-desc">${pkg.myrentNote}</div>` : ''}`;
+
+      // REA cell
+      const reaPriceHtml = `<div class="price">${fmt(pkg.rea)}</div><div class="package-desc">${fmt(pkg.reaGst)} incl. GST</div>`;
+
+      // TM ALC cell
+      const alcPriceHtml = `<div class="price">${fmt(pkg.alc)}</div>${pkg.alcNote ? `<div class="package-desc">${pkg.alcNote}</div>` : ''}`;
+
+      // TM Partner cell
+      const partnerPriceHtml = pkg.partner === 0
+        ? `<div class="price">$0</div>`
+        : `<div class="price">${fmt(pkg.partner)}</div>`;
+
       return `
         <tr>
           <td>
             <div class="package-name">${pkg.name}</div>
             <div class="package-desc">${pkg.desc}</div>
           </td>
-          <td>
-            ${myrentDisplay}
-            ${diffLabel}
-          </td>
-          <td>
-            ${(() => {
-              const reaDiff = pkg.tm - pkg.rea;
-              const reaCheaper = reaDiff > 0;
-              const reaPct = Math.abs((reaDiff / pkg.tm) * 100).toFixed(1);
-              const reaDiffLabel = reaCheaper
-                ? `<div class="savings-amount">Save ${fmt(reaDiff)}</div><div><span class="savings-badge">${reaPct}% cheaper</span></div>`
-                : `<div class="savings-amount more-expensive">Costs ${fmt(Math.abs(reaDiff))} more</div><div><span class="savings-badge more-expensive">${reaPct}% more expensive</span></div>`;
-              return `<div class="price">${fmt(pkg.rea)}</div>
-            <div class="package-desc">${fmt(pkg.reaGst)} incl. GST</div>
-            ${reaDiffLabel}`;
-            })()}
-          </td>
-          <td>
+          <td>${comparisonCell(pkg.myrent, pkg.tm, myrentPriceHtml)}</td>
+          <td>${comparisonCell(pkg.rea, pkg.tm, reaPriceHtml)}</td>
+          <td>${comparisonCell(pkg.alc, pkg.tm, alcPriceHtml)}</td>
+          <td>${comparisonCell(pkg.partner, pkg.tm, partnerPriceHtml)}</td>
+          <td class="ref-col">
             <div class="price">${fmt(pkg.tm)}</div>
             <div class="package-desc">${fmt(pkg.tmGst)} incl. GST</div>
           </td>
@@ -370,7 +395,7 @@
       `;
     }).join('');
 
-    results.classList.add('visible');
+    document.getElementById('results').classList.add('visible');
   });
 </script>
 </body>
